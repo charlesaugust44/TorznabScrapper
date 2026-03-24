@@ -48,10 +48,14 @@ export class ComandoScrapper implements Scrapper {
         hash.update(url);
 
         const getImdbId = (url: string|undefined) => url?.match(/tt\d{7,8}/)?.[0] ?? '';
+        const getSize = (text: string) => text.match(/Tamanho:\s*(.+?)(?:\n|$)/i)?.[1]?.trim() || 'Unknown';
 
         const pageTitle = $(".center-widget .post-title a").first().text().trim()
         const id = hash.digest('hex');
         const imdbid = getImdbId($(".post-content a").first().attr("href"));
+        const size = getSize($(".post-content p").text());
+        const seeders = 10;
+        const peers = 10;
 
         $(".center-widget .post-content a").each((index, el) => {
             const magnet = $(el).attr("href");
@@ -68,7 +72,7 @@ export class ComandoScrapper implements Scrapper {
                 'description',
                 new Date(),
                 magnet,
-                imdbid
+                {imdbid, size, seeders, peers}
             ));
         });
     }

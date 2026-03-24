@@ -79,34 +79,17 @@ export class RSSItem {
     imdbid?: string;
     torznabAttrs: TorznabAttr[] = [];
 
-    constructor(title: string, guid: string, link: string, description: string, pubDate: Date, magnet: string, imdbid: string) {
+    constructor(title: string, guid: string, link: string, description: string, pubDate: Date, magnet: string, torznabAttrs: Object) {
         this.title = title;
         this.guid = guid;
         this.link = link;
         this.description = description;
         this.pubDate = pubDate;
         this.magnet = magnet;
-        this.imdbid = imdbid;
-    }
 
-    addTorznabAttr(name: string, value: string): void {
-        this.torznabAttrs.push({ name, value });
-    }
-    
-    setSize(bytes: number): void {
-        this.size = bytes;
-        this.enclosureLength = bytes;
-        this.addTorznabAttr("size", bytes.toString());
-    }
-    
-    setSeeders(count: number): void {
-        this.seeders = count;
-        this.addTorznabAttr("seeders", count.toString());
-    }
-     
-    setPeers(count: number): void {
-        this.peers = count;
-        this.addTorznabAttr("peers", count.toString());
+        for (const [name, value] of Object.entries(torznabAttrs)) {
+            this.torznabAttrs.push({ name, value });
+        }        
     }
 }
 
@@ -138,17 +121,6 @@ export class TorznabSearchResponse extends Torznab {
     }
 
     addItem(item: RSSItem): void {
-        if (item.size !== undefined) {
-            item.addTorznabAttr("size", item.size.toString());
-        }
-        
-        if (item.seeders !== undefined) {
-            item.addTorznabAttr("seeders", item.seeders.toString());
-        }
-
-        if (item.peers !== undefined) {
-            item.addTorznabAttr("peers", item.peers.toString());
-        }
         this.channel.addItem(item);
     }
 
