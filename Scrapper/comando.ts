@@ -48,12 +48,14 @@ export class ComandoScrapper implements Scrapper {
         hash.update(url);
 
         const getImdbId = (url: string|undefined) => url?.match(/tt\d{7,8}/)?.[0] ?? '';
-        const getSize = (text: string) => text.match(/Tamanho:\s*(.+?)(?:\n|$)/i)?.[1]?.trim() || 'Unknown';
+        const getSize = (text: string) => {
+            const size = text.match(/Tamanho:\s*(.+?)(?:\n|$)/i)?.[1]?.trim() || '0';
+        }
 
         const pageTitle = $(".center-widget .post-title a").first().text().trim()
         const id = hash.digest('hex');
         const imdbid = getImdbId($(".post-content a").first().attr("href"));
-        const size = getSize($(".post-content p").text());
+        const size = this.#convertSize($(".post-content p").text());
         const seeders = 10;
         const peers = 10;
 
@@ -72,9 +74,37 @@ export class ComandoScrapper implements Scrapper {
                 'description',
                 new Date(),
                 magnet,
-                {imdbid, size, seeders, peers}
+                size,
+                {imdbid, seeders, peers}
             ));
         });
+    }
+
+    #convertSize(text: string): number {
+        const sizeMatch = text.match(/Tamanho:\s*([^\n]+)/i);
+        if (!sizeMatch) return 0;
+        
+        const sizes = sizeMatch[1].split(',').map(s => s.trim());
+        const bytes: number[] = [];
+        
+        const multipliers: Record<string, number> = { 
+            k: 1024, 
+            m: 1048576, 
+            g: 1073741824, 
+            t: 1099511627776 
+        };
+        
+        for (const size of sizes) {
+            const match = size.match(/([\d.]+)\s*([kmgt])?b?/i);
+            if (match) {
+                const value = parseFloat(match[1]);
+                const unit = match[2]?.toLowerCase();
+                const multiplier = unit ? multipliers[unit] : 1;
+                bytes.push(Math.floor(value * multiplier));
+            }
+        }
+        
+        return bytes.length ? Math.max(...bytes) : 0;
     }
 
     #getConfig(): AxiosRequestConfig {

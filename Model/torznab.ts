@@ -1,5 +1,6 @@
 import { create } from 'xmlbuilder2';
 
+
 /**
  * Base class for all Torznab responses.
  * Provides a common serialization interface.
@@ -73,23 +74,39 @@ export class RSSItem {
     magnet: string;
     enclosureLength: number = 0;
     enclosureType: string = "application/x-bittorrent";
-    size?: number;
-    seeders?: number;
-    peers?: number;
-    imdbid?: string;
+    size: number;
     torznabAttrs: TorznabAttr[] = [];
 
-    constructor(title: string, guid: string, link: string, description: string, pubDate: Date, magnet: string, torznabAttrs: Object) {
+    constructor(title: string, guid: string, link: string, description: string, pubDate: Date, magnet: string, size: number, torznabAttrs: Object) {
         this.title = title;
         this.guid = guid;
         this.link = link;
         this.description = description;
         this.pubDate = pubDate;
         this.magnet = magnet;
+        this.size = size;
 
         for (const [name, value] of Object.entries(torznabAttrs)) {
             this.torznabAttrs.push({ name, value });
         }        
+    }
+
+    toXML(builder: any) {
+        builder.ele("title").dat(this.title);
+        builder.ele("guid").txt(this.guid);
+        builder.ele("comments").txt(this.link);
+        builder.ele("description").dat(this.description);
+        builder.ele("size").txt(this.size.toString());
+        builder.ele("pubDate").txt(this.pubDate.toUTCString());
+        builder.ele("enclosure", {
+            url: this.magnet,
+            length: this.enclosureLength,
+            type: this.enclosureType,
+        });
+
+        for (const attr of this.torznabAttrs) {
+            builder.ele("torznab:attr", { name: attr.name, value: attr.value });
+        }
     }
 }
 
@@ -132,21 +149,7 @@ export class TorznabSearchResponse extends Torznab {
         channel.ele("title").txt(this.channel.title);
 
         for (const item of this.channel.items) {
-            const itemElem = channel.ele("item");
-            itemElem.ele("title").dat(item.title);
-            itemElem.ele("guid").txt(item.guid);
-            itemElem.ele("link").dat(item.link);
-            itemElem.ele("description").dat(item.description);
-            itemElem.ele("pubDate").txt(item.pubDate.toUTCString());
-            itemElem.ele("enclosure", {
-                url: item.magnet,
-                length: item.enclosureLength,
-                type: item.enclosureType,
-            });
-
-            for (const attr of item.torznabAttrs) {
-                itemElem.ele("torznab:attr", { name: attr.name, value: attr.value });
-            }
+            item.toXML(channel.ele("item"));            
         }
 
         return root.end({ prettyPrint: true });
