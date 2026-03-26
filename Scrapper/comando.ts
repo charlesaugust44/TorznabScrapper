@@ -1,7 +1,8 @@
 import { RSSItem, TorznabSearchResponse } from "../Model/torznab.js";
 import { Scrapper } from "./scrapper.js";
-import axios, { AxiosRequestConfig } from "axios";
+import axios, { AxiosRequestConfig, AxiosResponse } from "axios";
 import * as cheerio from "cheerio";
+import { error } from "console";
 import crypto from "crypto";
 
 export class ComandoScrapper implements Scrapper {
@@ -39,8 +40,11 @@ export class ComandoScrapper implements Scrapper {
             return;
         }
 
-        //TODO: handle errors properly
-        const detailsResponse = await axios.get(url, this.#getConfig());
+        const detailsResponse = await this.#fetchWithRetry(url).catch(error => console.log(error));
+
+        if (!detailsResponse) {
+            return;
+        }
 
         const $ = cheerio.load(detailsResponse.data);
 
@@ -48,9 +52,6 @@ export class ComandoScrapper implements Scrapper {
         hash.update(url);
 
         const getImdbId = (url: string|undefined) => url?.match(/tt\d{7,8}/)?.[0] ?? '';
-        const getSize = (text: string) => {
-            const size = text.match(/Tamanho:\s*(.+?)(?:\n|$)/i)?.[1]?.trim() || '0';
-        }
 
         const pageTitle = $(".center-widget .post-title a").first().text().trim()
         const id = hash.digest('hex');
@@ -77,6 +78,21 @@ export class ComandoScrapper implements Scrapper {
                 size,
                 {imdbid, seeders, peers}
             ));
+        });
+    }
+
+    #fetchWithRetry(url: string, retry: boolean = true): Promise<AxiosResponse> {
+        return axios.get(url, this.#getConfig()).catch(error => {
+            const isTimeout = error.code === 'ECONNABORTED' || 
+                            error.message?.includes('timeout') ||
+                            error.code === 'ETIMEDOUT';
+            
+            if (retry && isTimeout) {
+                console.log('Timeout occurred, retrying once...');
+                return this.#fetchWithRetry(url, false);
+            }
+            
+            throw error;
         });
     }
 
